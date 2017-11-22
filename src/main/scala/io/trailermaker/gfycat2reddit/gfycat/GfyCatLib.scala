@@ -2,11 +2,16 @@ package io.trailermaker.gfycat2reddit.gfycat
 
 import java.io.IOException
 
+import akka.http.scaladsl.model.HttpHeader
+import akka.http.scaladsl.model.headers.RawHeader
 import io.trailermaker.gfycat2reddit.Gfycat2Reddit
 import io.trailermaker.gfycat2reddit.common.GfyCats
+import io.trailermaker.gfycat2reddit.common.GfyOAuthRequest
+import io.trailermaker.gfycat2reddit.common.GfyOAuthResponse
 import net.softler.client.ClientRequest
 
 import scala.concurrent.Future
+import spray.json._
 
 object GfyCatLib {
   import Gfycat2Reddit._
@@ -19,8 +24,19 @@ object GfyCatLib {
       }
     }
 
+  def retrieveToken(appId: String, appSecret: String, username: String, passwd: String): Future[GfyOAuthResponse] = {
+    val req = GfyOAuthRequest(appId, appSecret, "password", username, passwd)
+
+    ClientRequest(s"https://api.gfycat.com/v1/oauth/token").entity(req.toJson.toString).post[GfyOAuthResponse].recoverWith {
+      case e => {
+        println(e.getMessage)
+        Future.failed(e)
+      }
+    }
+  }
+
   @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
-  def retrieveAllCatsFromUser(user: String, step: Int): Future[List[Future[GfyCats]]] = {
+  def retrieveAllCatsFromUser(token: String, step: Int): Future[List[Future[GfyCats]]] = {
     def go(cursor: Option[String], lastRes: Future[GfyCats], curList: List[Future[GfyCats]]): Future[List[Future[GfyCats]]] = {
       println(s"Recurse call with cursor ${cursor.getOrElse("")}")
       lastRes
@@ -33,7 +49,10 @@ object GfyCatLib {
             case _ =>
               go(
                 Some(cats.cursor),
-                ClientRequest(s"https://api.gfycat.com/v1/users/$user/gfycats?count=$step&cursor=${cats.cursor}").withJson.get[GfyCats],
+                ClientRequest(s"https://api.gfycat.com/v1/me/gfycats?count=$step&cursor=${cats.cursor}")
+                  .headers(List(RawHeader("Authorization", s"Bearer $token")))
+                  .withJson
+                  .get[GfyCats],
                 lastRes :: curList
               )
           }
@@ -45,7 +64,11 @@ object GfyCatLib {
         }
 
     }
-    go(None, ClientRequest(s"https://api.gfycat.com/v1/users/$user/gfycats?count=$step").withJson.get[GfyCats], Nil)
+    go(
+      None,
+      ClientRequest(s"https://api.gfycat.com/v1/me/gfycats?count=$step").headers(List(RawHeader("Authorization", s"Bearer $token"))).withJson.get[GfyCats],
+      Nil
+    )
   }
 
 }

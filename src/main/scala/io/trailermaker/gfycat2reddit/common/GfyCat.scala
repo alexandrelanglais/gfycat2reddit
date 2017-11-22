@@ -1,5 +1,15 @@
 package io.trailermaker.gfycat2reddit.common
 
+final case class GfyOAuthRequest(client_id: String, client_secret: String, grant_type: String, username: String, password: String)
+final case class GfyOAuthResponse(
+    token_type:               String,
+    refresh_token_expires_in: Long,
+    refresh_token:            String,
+    resource_owner:           String,
+    expires_in:               Long,
+    access_token:             String
+)
+
 final case class GfyCat(
     gfyId:        String,
     gfyNumber:    String,
