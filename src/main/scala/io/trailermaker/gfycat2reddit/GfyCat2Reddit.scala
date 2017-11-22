@@ -1,5 +1,7 @@
 package io.trailermaker.gfycat2reddit
 
+import java.util.concurrent.TimeUnit
+
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.stream.ActorMaterializer
@@ -12,6 +14,7 @@ import io.trailermaker.gfycat2reddit.reddit.RedditLib
 import spray.json.DefaultJsonProtocol
 
 import scala.concurrent.Future
+import scala.concurrent.duration._
 
 trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   implicit val gcf  = jsonFormat18(GfyCat)
@@ -23,6 +26,7 @@ object Gfycat2Reddit extends JsonSupport {
   implicit val system       = ActorSystem()
   implicit val executor     = system.dispatcher
   implicit val materializer = ActorMaterializer()
+  val scheduler             = system.scheduler
 
   def loadDatabase(gfycatUser: String): Unit = {
     val result = GfyCatLib.retrieveAllCatsFromUser(gfycatUser, 200)
@@ -45,20 +49,38 @@ object Gfycat2Reddit extends JsonSupport {
     val gfycatUser  = args(5)
     val reddit      = RedditLib.initOAuth(username, passwd, appClientId, appSecret)
 
-    MongoImpl
-      .pickGfyCatNotSent()
-      .map(optcat =>
-        optcat.map(cat => {
-          RedditLib.submitLink(reddit, subreddit, cat.gifUrl.getOrElse(""), cat.title)
-          cat
-        }))
-      .flatMap(
-        opt =>
-          opt
-            .fold(Future.failed[Int](new Exception("No more gfycat unposted"))) { cat =>
-              MongoImpl.updateGfyCat(cat.copy(sentToReddit = Some(true)))
-          }
-      )
+    val taskLoadDb = new Runnable {
+      def run(): Unit =
+        loadDatabase(gfycatUser)
+    }
+
+    val taskSendToReddit = new Runnable {
+      def run(): Unit =
+        MongoImpl
+          .pickGfyCatNotSent()
+          .map(optcat =>
+            optcat.map(cat => {
+              RedditLib.submitLink(reddit, subreddit, cat.webmUrl, cat.title)
+              cat
+            }))
+          .flatMap(
+            opt =>
+              opt
+                .fold(Future.failed[Int](new Exception("No more gfycat unposted"))) { cat =>
+                  MongoImpl.updateGfyCat(cat.copy(sentToReddit = Some(true)))
+              }
+          )
+    }
+
+    scheduler.schedule(
+      initialDelay = 5.seconds,
+      interval = 1.hour,
+      runnable = taskLoadDb)
+
+    scheduler.schedule(
+      initialDelay = 1.minute,
+      interval = 15.minutes,
+      runnable = taskSendToReddit)
   }
 
 }
