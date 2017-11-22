@@ -28,14 +28,14 @@ object Gfycat2Reddit extends JsonSupport {
   implicit val materializer = ActorMaterializer()
   val scheduler             = system.scheduler
 
-  def loadDatabase(gfycatUser: String): Unit = {
+  def loadDatabase(gfycatUser: String, markSent: Option[Boolean] = None): Unit = {
     val result = GfyCatLib.retrieveAllCatsFromUser(gfycatUser, 200)
 
     result.map(_.map(_.map(cat => {
       println(s"${cat.gfycats.size} images")
       cat.gfycats.map(x => {
         println(s"${x.gfyId} => ${x.gifUrl}")
-        MongoImpl.createGfyCatIfNotExists(x.copy(sentToReddit = Some(false)))
+        MongoImpl.createGfyCatIfNotExists(x.copy(sentToReddit = markSent.orElse(Some(false))))
       })
     })))
   }
@@ -47,6 +47,7 @@ object Gfycat2Reddit extends JsonSupport {
     val appSecret   = args(3)
     val subreddit   = args(4)
     val gfycatUser  = args(5)
+    val action      = if (args.length == 7) args(6) else ""
     val reddit      = RedditLib.initOAuth(username, passwd, appClientId, appSecret)
 
     val taskLoadDb = new Runnable {
@@ -72,15 +73,16 @@ object Gfycat2Reddit extends JsonSupport {
           )
     }
 
-    scheduler.schedule(
-      initialDelay = 5.seconds,
-      interval = 1.hour,
-      runnable = taskLoadDb)
+    if(action != "") {
+      if(action == "loadDbAndMarkSent")
+        loadDatabase(gfycatUser, Some(true))
 
-    scheduler.schedule(
-      initialDelay = 1.minute,
-      interval = 15.minutes,
-      runnable = taskSendToReddit)
+    }
+    else {
+      scheduler.schedule(initialDelay = 5.seconds, interval = 1.hour, runnable = taskLoadDb)
+
+      scheduler.schedule(initialDelay = 15.seconds, interval = 15.minutes, runnable = taskSendToReddit)
+    }
   }
 
 }
