@@ -39,3 +39,5 @@ final case class GfyCatUploadRequest(
     secret:     String,
     uploadType: String
 )
+
+final case class GfyCatUpload(fetchUrl: String, title: String, nsfw: Int)

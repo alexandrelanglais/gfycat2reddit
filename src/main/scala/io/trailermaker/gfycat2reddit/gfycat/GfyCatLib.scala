@@ -1,18 +1,26 @@
 package io.trailermaker.gfycat2reddit.gfycat
 
+import java.io.File
 import java.io.IOException
 
 import akka.http.javadsl.model.headers.ContentType
+import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model.ContentType
 import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.model.HttpHeader
 import akka.http.scaladsl.model.MediaTypes
+import akka.http.scaladsl.model.Multipart
+import akka.http.scaladsl.model.RequestEntity
 import akka.http.scaladsl.model.headers.RawHeader
+import akka.stream.scaladsl.Source
 import io.trailermaker.gfycat2reddit.Gfycat2Reddit
+import io.trailermaker.gfycat2reddit.common.GfyCatUpload
 import io.trailermaker.gfycat2reddit.common.GfyCatUploadRequest
 import io.trailermaker.gfycat2reddit.common.GfyCats
 import io.trailermaker.gfycat2reddit.common.GfyOAuthRequest
 import io.trailermaker.gfycat2reddit.common.GfyOAuthResponse
+import net.softler.client.ClientRequest
+import akka.stream.scaladsl.FileIO
 import net.softler.client.ClientRequest
 
 import scala.concurrent.Future
@@ -76,12 +84,59 @@ object GfyCatLib {
     )
   }
 
-  def requestUpload(): Future[GfyCatUploadRequest] =
-    ClientRequest(s"https://api.gfycat.com/v1/gfycats").entity("").asJson.post[GfyCatUploadRequest].recoverWith {
-      case e => {
-        println(e.getMessage)
-        Future.failed(e)
+  def requestUpload(token: String): Future[GfyCatUploadRequest] =
+    ClientRequest(s"https://api.gfycat.com/v1/gfycats")
+      .headers(List(RawHeader("Authorization", s"Bearer $token")))
+      .entity("")
+      .asJson
+      .post[GfyCatUploadRequest]
+      .recoverWith {
+        case e => {
+          println(e.getMessage)
+          Future.failed(e)
+        }
       }
-    }
 
+  private def createEntity(file: File): Future[RequestEntity] = {
+    require(file.exists())
+    val formData =
+      Multipart.FormData(
+        Source.single(Multipart.FormData.BodyPart(
+          "test",
+          HttpEntity(MediaTypes.`application/octet-stream`, file.length(), FileIO.fromPath(file.toPath, chunkSize = 100000)), // the chunk size here is currently critical for performance
+          Map("filename" -> file.getName)
+        )))
+    Marshal(formData).to[RequestEntity]
+  }
+
+  def uploadFile(token: String, file: File, gfyName: String, uploadType: String) = {
+    val fileName     = file.getName
+    val title        = fileName.replaceAll("_", " ")
+    val renamedFile  = new File(gfyName)
+    val fetchUrl     = s"$uploadType/$gfyName"
+    val gfyCatUpload = GfyCatUpload(fetchUrl, title, 1)
+
+    file.renameTo(renamedFile)
+
+    for {
+      ent <- createEntity(file)
+      _ = println("Created entity")
+      res = ClientRequest(s"https://api.gfycat.com/v1/gfycats")
+              .headers(List(RawHeader("Authorization", s"Bearer $token")))
+              .entity("")
+              .asJson
+              .post[GfyCatUploadRequest]
+      _ = println("Sent upload request")
+
+      req = ClientRequest(s"https://api.gfycat.com/v1/gfycats")
+        .headers(
+          List(
+            RawHeader("Authorization", s"Bearer $token")
+          )
+        )
+        .entity(ent)
+      _ = println("Sent binary file")
+    } yield res
+
+  }
 }

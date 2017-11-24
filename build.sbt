@@ -14,6 +14,7 @@ resolvers += Resolver.jcenterRepo
 libraryDependencies += "net.softler"                %% "akka-http-rest-client" % "0.1.0"
 libraryDependencies += "com.typesafe.akka"          %% "akka-http-spray-json"  % "10.0.10"
 libraryDependencies += "com.typesafe.akka"          % "akka-testkit_2.12"      % "2.5.6" % "test"
+libraryDependencies += "com.typesafe.akka"          % "akka-testkit_2.12"      % "2.5.6" % "test"
 libraryDependencies += "ch.qos.logback"             % "logback-classic"        % "1.2.3"
 libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging"         % "3.7.2"
 libraryDependencies += "org.scalactic"              %% "scalactic"             % "3.0.4"

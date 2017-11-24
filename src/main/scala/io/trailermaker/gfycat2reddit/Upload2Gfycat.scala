@@ -1,5 +1,6 @@
 package io.trailermaker.gfycat2reddit
 
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorSystem
@@ -22,7 +23,6 @@ object Upload2Gfycat extends JsonSupport {
   implicit val materializer = ActorMaterializer()
   val scheduler             = system.scheduler
 
-
   def main(args: Array[String]): Unit = {
     import Gfycat2Reddit._
     val filePath     = args(0)
@@ -31,7 +31,19 @@ object Upload2Gfycat extends JsonSupport {
     val gfyUsername  = args(3)
     val gfyPassword  = args(4)
 
-    GfyCatLib.requestUpload().map(x => println(x.gfyname))
+    val fut = for {
+      token <- GfyCatLib.retrieveToken(gfyAppId, gfyAppSecret, gfyUsername, gfyPassword)
+      upReq <- GfyCatLib.requestUpload(token.access_token)
+      res <- GfyCatLib.uploadFile(token.access_token, new File("OfficialMedicalIcterinewarbler"), upReq.gfyname, upReq.uploadType)
+    } yield res
+
+    fut.recoverWith {
+      case e => {
+        println(e.getMessage)
+        Future.failed(e)
+      }
+    }
+
   }
 
 }
