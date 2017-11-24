@@ -21,6 +21,8 @@ trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
 
   implicit val gforeq = jsonFormat5(GfyOAuthRequest)
   implicit val gfores = jsonFormat6(GfyOAuthResponse)
+
+  implicit val gur = jsonFormat4(GfyCatUploadRequest)
 }
 
 object Gfycat2Reddit extends JsonSupport {

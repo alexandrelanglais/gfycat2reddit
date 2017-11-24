@@ -32,3 +32,10 @@ final case class GfyCat(
 )
 
 final case class GfyCats(gfycats: List[GfyCat], cursor: String)
+
+final case class GfyCatUploadRequest(
+    isOk:       Boolean,
+    gfyname:    String,
+    secret:     String,
+    uploadType: String
+)

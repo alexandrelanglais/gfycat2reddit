@@ -2,9 +2,14 @@ package io.trailermaker.gfycat2reddit.gfycat
 
 import java.io.IOException
 
+import akka.http.javadsl.model.headers.ContentType
+import akka.http.scaladsl.model.ContentType
+import akka.http.scaladsl.model.HttpEntity
 import akka.http.scaladsl.model.HttpHeader
+import akka.http.scaladsl.model.MediaTypes
 import akka.http.scaladsl.model.headers.RawHeader
 import io.trailermaker.gfycat2reddit.Gfycat2Reddit
+import io.trailermaker.gfycat2reddit.common.GfyCatUploadRequest
 import io.trailermaker.gfycat2reddit.common.GfyCats
 import io.trailermaker.gfycat2reddit.common.GfyOAuthRequest
 import io.trailermaker.gfycat2reddit.common.GfyOAuthResponse
@@ -70,5 +75,13 @@ object GfyCatLib {
       Nil
     )
   }
+
+  def requestUpload(): Future[GfyCatUploadRequest] =
+    ClientRequest(s"https://api.gfycat.com/v1/gfycats").entity("").asJson.post[GfyCatUploadRequest].recoverWith {
+      case e => {
+        println(e.getMessage)
+        Future.failed(e)
+      }
+    }
 
 }
