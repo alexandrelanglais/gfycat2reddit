@@ -1,3 +1,5 @@
+import wartremover.WartRemover.autoImport.Wart
+
 name := "Gfycat 2 Reddit"
 
 organization := "io.trailermaker"
@@ -29,7 +31,9 @@ wartremoverErrors ++= Warts.allBut(
   Wart.Equals,
   Wart.NonUnitStatements,
   Wart.Any,
-  Wart.PublicInference
+  Wart.PublicInference,
+  Wart.OptionPartial,
+    Wart.ToString
 )
 
 mainClass in assembly := Some("io.trailermaker.gfycat2reddit.Gfycat2Reddit")

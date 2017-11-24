@@ -6,6 +6,7 @@ import java.util.concurrent.TimeUnit
 import akka.actor.ActorSystem
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.stream.ActorMaterializer
+import akka.stream.scaladsl.Sink
 import io.trailermaker.gfycat2reddit.common._
 import io.trailermaker.gfycat2reddit.gfycat.GfyCatLib
 import io.trailermaker.gfycat2reddit.mongo.MongoImpl
@@ -15,6 +16,9 @@ import spray.json.DefaultJsonProtocol
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
+import akka.http.scaladsl.marshalling.Marshal
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.model.headers.RawHeader
 
 object Upload2Gfycat extends JsonSupport {
 
@@ -33,13 +37,16 @@ object Upload2Gfycat extends JsonSupport {
 
     val fut = for {
       token <- GfyCatLib.retrieveToken(gfyAppId, gfyAppSecret, gfyUsername, gfyPassword)
-      upReq <- GfyCatLib.requestUpload(token.access_token)
-      res <- GfyCatLib.uploadFile(token.access_token, new File("OfficialMedicalIcterinewarbler"), upReq.gfyname, upReq.uploadType)
+      _ = println(s"Got token ${token}")
+      upReq <- GfyCatLib.requestUpload(token.access_token, new File(filePath))
+      _ = println(s"Got uppload name ${upReq.gfyname}")
+      res <- GfyCatLib.uploadFile(token.access_token, new File(filePath), upReq.gfyname, upReq.uploadType)
     } yield res
 
     fut.recoverWith {
       case e => {
         println(e.getMessage)
+        e.printStackTrace()
         Future.failed(e)
       }
     }

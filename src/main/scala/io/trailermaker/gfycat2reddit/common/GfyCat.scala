@@ -1,6 +1,6 @@
 package io.trailermaker.gfycat2reddit.common
 
-final case class GfyOAuthRequest(client_id: String, client_secret: String, grant_type: String, username: String, password: String)
+final case class GfyOAuthRequest(client_id: String, client_secret: String, grant_type: String, username: String, password: String, scope: String)
 final case class GfyOAuthResponse(
     token_type:               String,
     refresh_token_expires_in: Long,
@@ -40,4 +40,4 @@ final case class GfyCatUploadRequest(
     uploadType: String
 )
 
-final case class GfyCatUpload(fetchUrl: String, title: String, nsfw: Int)
+final case class GfyCatUpload(title: String, nsfw: Int, noMd5: Boolean = true)
