@@ -79,5 +79,5 @@ project/plugins/project/
 *.class
 *.log
 
-scripts/utils.sh
+persolaunch.sh
 # End of https://www.gitignore.io/api/sbt,scala,intellij+all
