@@ -10,6 +10,7 @@ import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.model.headers.`Content-Length`
 import akka.http.scaladsl.server.directives.DebuggingDirectives
 import akka.stream.scaladsl.FileIO
 import akka.stream.scaladsl.Sink
@@ -22,6 +23,7 @@ import io.trailermaker.gfycat2reddit.common.GfyOAuthRequest
 import io.trailermaker.gfycat2reddit.common.GfyOAuthResponse
 import net.softler.client.ClientRequest
 import net.softler.client.ClientRequest
+import shaded.google.common.net.HttpHeaders
 
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -39,7 +41,7 @@ object GfyCatLib {
     }
 
   def retrieveToken(appId: String, appSecret: String, username: String, passwd: String): Future[GfyOAuthResponse] = {
-    val req = GfyOAuthRequest(appId, appSecret, "password", username, passwd, "all")
+    val req = GfyOAuthRequest(appId, appSecret, "password", username, passwd)
 
     ClientRequest(s"https://api.gfycat.com/v1/oauth/token").entity(req.toJson.toString).post[GfyOAuthResponse].recoverWith {
       case e => {
@@ -86,8 +88,8 @@ object GfyCatLib {
   }
 
   def requestUpload(token: String, file: File): Future[GfyCatUploadRequest] = {
-    val fileName = file.getName
-    val title    = fileName.replaceAll("_", " ")
+    val fileName    = better.files.File(file.getAbsolutePath).nameWithoutExtension(false)
+    val title       = fileName.replaceAll("_", " ")
 
     val gfyCatUpload = GfyCatUpload(title, 1)
 
@@ -108,46 +110,41 @@ object GfyCatLib {
     require(file.exists())
     val formData =
       Multipart.FormData(
-        Multipart.FormData.BodyPart(
-          "file",
-          HttpEntity(MediaTypes.`video/webm`, file.length(), FileIO.fromPath(file.toPath, chunkSize = 8192))
-        ),
-        Multipart.FormData.BodyPart(
+        Multipart.FormData.BodyPart.Strict(
           "key",
           file.getName
+        ),
+        Multipart.FormData.BodyPart.fromPath(
+          "file",
+          ContentTypes.`application/octet-stream`,
+          file.toPath,
+          chunkSize = 8192
         )
-      )
+      ).toStrict(15.seconds)
     Marshal(formData).to[RequestEntity]
   }
 
   def uploadFile(token: String, file: File, gfyName: String, uploadType: String) = {
-    val fileName    = file.getName
-    val title       = fileName.replaceAll("_", " ")
-    val renamedFile = new File(gfyName)
+    val renamedFile = new File(s"/tmp/$gfyName") // ./AWhaleInABoat
     val fetchUrl    = s"$uploadType/$gfyName"
 
-    better.files.File(file.getAbsolutePath).copyTo(better.files.File("backup"))
-    file.renameTo(renamedFile)
-    better.files.File("backup").moveTo(better.files.File(file.getAbsolutePath))
+    better.files.File(file.getAbsolutePath).copyTo(better.files.File(renamedFile.getCanonicalPath), true) // cp /tmp/path/file.webm -> ./backup
+//    file.renameTo(renamedFile) // mv /tmp/path/file.webm -> ./AWhaleInABoat
+//    better.files.File("backup.webm").moveTo(better.files.File(file.getAbsolutePath), true) // mv ./backup -> /tmp/path/file.webm
 
     println(renamedFile.length())
     for {
       ent <- createEntity(renamedFile)
       _ = println("Created entity")
 
-      req <- Http().singleRequest(
-              HttpRequest(uri    = s"https://$uploadType",
-                          method = HttpMethods.POST,
-                          entity = ent,
-                          headers = List(
-                            RawHeader("Authorization", s"Bearer $token")
-                          )))
+      req <- Http().singleRequest(HttpRequest(uri = s"https://$uploadType", method = HttpMethods.POST, entity = ent))
 
       _ <- req.entity.dataBytes
             .runWith(Sink.head)
             .map(z => println(s"********** ${z.decodeString(Charset.defaultCharset())}"))
 
       _ = println(s"Sent binary file with req  ${req.toString}")
+      _ = better.files.File(renamedFile.getCanonicalPath).delete()
     } yield req
 
   }

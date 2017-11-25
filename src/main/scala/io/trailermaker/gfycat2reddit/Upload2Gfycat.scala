@@ -13,7 +13,7 @@ import io.trailermaker.gfycat2reddit.mongo.MongoImpl
 import io.trailermaker.gfycat2reddit.reddit.RedditLib
 import spray.json.DefaultJsonProtocol
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import akka.http.scaladsl.marshalling.Marshal
@@ -22,12 +22,12 @@ import akka.http.scaladsl.model.headers.RawHeader
 
 object Upload2Gfycat extends JsonSupport {
 
-  implicit val system       = ActorSystem()
-  implicit val executor     = system.dispatcher
-  implicit val materializer = ActorMaterializer()
-  val scheduler             = system.scheduler
-
   def main(args: Array[String]): Unit = {
+    implicit val system:ActorSystem       = ActorSystem()
+    implicit val executor: ExecutionContextExecutor = system.dispatcher
+    implicit val materializer: ActorMaterializer = ActorMaterializer()
+    val scheduler             = system.scheduler
+
     import Gfycat2Reddit._
     val filePath     = args(0)
     val gfyAppId     = args(1)
@@ -50,6 +50,11 @@ object Upload2Gfycat extends JsonSupport {
         Future.failed(e)
       }
     }
+
+    fut.onComplete(_ => {
+      system.terminate()
+      System.exit(0)
+    })
 
   }
 

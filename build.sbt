@@ -36,4 +36,5 @@ wartremoverErrors ++= Warts.allBut(
     Wart.ToString
 )
 
-mainClass in assembly := Some("io.trailermaker.gfycat2reddit.Gfycat2Reddit")
+//mainClass in assembly := Some("io.trailermaker.gfycat2reddit.Gfycat2Reddit")
+mainClass in assembly := Some("io.trailermaker.gfycat2reddit.Upload2Gfycat")

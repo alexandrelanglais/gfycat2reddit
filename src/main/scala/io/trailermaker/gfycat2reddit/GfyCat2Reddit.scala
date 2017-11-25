@@ -19,11 +19,11 @@ trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   implicit val gcf2 = jsonFormat2(GfyCats)
   implicit val rsf  = jsonFormat18(RedditSubmit)
 
-  implicit val gforeq = jsonFormat6(GfyOAuthRequest)
+  implicit val gforeq = jsonFormat5(GfyOAuthRequest)
   implicit val gfores = jsonFormat6(GfyOAuthResponse)
 
   implicit val gur = jsonFormat4(GfyCatUploadRequest)
-  implicit val gurs = jsonFormat3(GfyCatUpload)
+  implicit val gurs = jsonFormat2(GfyCatUpload)
 }
 
 object Gfycat2Reddit extends JsonSupport {
@@ -80,9 +80,9 @@ object Gfycat2Reddit extends JsonSupport {
       }
     }
 
-    scheduler.schedule(initialDelay = 5.seconds, interval = 24.hour, runnable = taskLoadDb)
+    scheduler.schedule(initialDelay = 5.seconds, interval = 1.hour, runnable = taskLoadDb)
 
-    scheduler.schedule(initialDelay = 15.seconds, interval = 45.minutes, runnable = taskSendToReddit)
+    scheduler.schedule(initialDelay = 15.seconds, interval = 1.hour, runnable = taskSendToReddit)
   }
 
 }
